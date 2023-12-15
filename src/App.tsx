@@ -1,26 +1,61 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signOut,
+  User,
+} from "firebase/auth";
+import { auth } from "./utils/firebase";
+import { UserContext } from "./contexts/UserContext";
+import { CrosswalkNavbar } from "./pages/CrosswalkNavbar";
+import { Login } from "./pages/Login";
 
-function App() {
+const allowedEmails = [
+  process.env.REACT_APP_EMAIL_1,
+  process.env.REACT_APP_EMAIL_2,
+];
+
+const App: React.FC = () => {
+  const [user, setUser] = useState(null as User | null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user && allowedEmails.includes(user.email || "")) {
+        setUser(user);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  function signInWithGoogle() {
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider);
+  }
+
+  function handleSignOut() {
+    signOut(auth);
+  }
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+      <BrowserRouter>
+        <UserContext.Provider
+          value={{ user, setUser, signInWithGoogle, handleSignOut, loading }}
         >
-          Learn React
-        </a>
-      </header>
+          <CrosswalkNavbar />
+          <Routes>
+            <Route path="/" />
+            <Route path="login" element={<Login />} />
+          </Routes>
+        </UserContext.Provider>
+      </BrowserRouter>
     </div>
   );
-}
+};
 
 export default App;
