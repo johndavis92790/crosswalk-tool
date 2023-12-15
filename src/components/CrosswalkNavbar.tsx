@@ -16,6 +16,7 @@ export function CrosswalkNavbar({ sticky = true }) {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Nav className="me-auto">
             <Nav.Link href="/">HOME</Nav.Link>
+            <Nav.Link href="/JsonUpload">JsonUpload</Nav.Link>
             {user ? (
               <>
                 <Nav.Link onClick={handleSignOut}>LOGOUT</Nav.Link>

@@ -9,8 +9,10 @@ import {
 } from "firebase/auth";
 import { auth } from "./utils/firebase";
 import { UserContext } from "./contexts/UserContext";
-import { CrosswalkNavbar } from "./pages/CrosswalkNavbar";
+import { CrosswalkNavbar } from "./components/CrosswalkNavbar";
 import { Login } from "./pages/Login";
+import { JsonUpload } from "./components/JsonUpload";
+import { Homepage } from "./pages/Homepage";
 
 const allowedEmails = [
   process.env.REACT_APP_EMAIL_1,
@@ -49,8 +51,9 @@ const App: React.FC = () => {
         >
           <CrosswalkNavbar />
           <Routes>
-            <Route path="/" />
+            <Route path="/" element={<Homepage />} />
             <Route path="login" element={<Login />} />
+            <Route path="JsonUpload" element={<JsonUpload />} />
           </Routes>
         </UserContext.Provider>
       </BrowserRouter>
