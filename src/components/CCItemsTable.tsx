@@ -18,9 +18,9 @@ import {
   SelectOption,
   educationLevels,
 } from "../utils/Helpers";
-import { CFJsonUpload } from "./CFJsonUpload";
+import { CCJsonUpload } from "./CCJsonUpload";
 
-export function CFItemsTable() {
+export function CCItemsTable() {
   const firestore = getFirestore();
   const [docs, setDocs] = useState<JSONDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string>("");
@@ -44,7 +44,9 @@ export function CFItemsTable() {
   // Function to handle fetching documents
   useEffect(() => {
     const fetchDocs = async () => {
-      const querySnapshot = await getDocs(collection(firestore, "JSONUploads"));
+      const querySnapshot = await getDocs(
+        collection(firestore, "CommonCoreJSONUploads"),
+      );
       const documents = querySnapshot.docs.map((docSnapshot) => ({
         id: docSnapshot.id,
         CFDocument: docSnapshot.data().CFDocument as CFDocument,
@@ -60,7 +62,10 @@ export function CFItemsTable() {
     const fetchCFItems = async () => {
       if (selectedDocId) {
         const itemsSnapshot = await getDocs(
-          collection(firestore, `JSONUploads/${selectedDocId}/CFItems`),
+          collection(
+            firestore,
+            `CommonCoreJSONUploads/${selectedDocId}/CFItems`,
+          ),
         );
         const items = itemsSnapshot.docs.map((doc) => doc.data() as CFItem);
 
@@ -187,7 +192,7 @@ export function CFItemsTable() {
     setIsSaving(true);
     console.log("Saving changes to Firestore...");
     try {
-      const docRef = doc(firestore, "JSONUploads", selectedDocId);
+      const docRef = doc(firestore, "CommonCoreJSONUploads", selectedDocId);
       await updateDoc(docRef, { CFItems: selectedCFItems });
       console.log("Changes saved successfully.");
       setPendingChanges([]);
@@ -288,7 +293,7 @@ export function CFItemsTable() {
 
   return (
     <div>
-      <CFJsonUpload />
+      <CCJsonUpload />
       <Form.Group controlId="docSelect">
         <Form.Label>Select Document</Form.Label>
         <Form.Control

@@ -2,11 +2,25 @@
   display: none;
 }
 
+.standards-table th:nth-child(3),
+.standards-table td:nth-child(3) {
+  width: 30%; /* Adjust width for Full Statement column */
+}
+
+.standards-table th:nth-child(6),
+.standards-table td:nth-child(6) {
+  width: 40%; /* Adjust width for Notes column */
+}
+
+.standards-table tr {
+  min-height: 1em; /* Adjust for minimum height of one line of text */
+}
+
 .editable-cell {
+  min-height: 1em; /* Adjust for minimum height of editable cells */
   width: 100%;
-  height: 100%;
-  border: none;
-  resize: none; /* Prevents resizing of the textarea */
-  padding: 0;
-  margin: 0;
+}
+
+.standards-table {
+  font-size: 12px;
 }

@@ -66,10 +66,11 @@ export interface CFDefinitions {
     description: string;
     typeCode: string;
     hierarchyCode: string;
+    standard: boolean;
   }>;
 }
 
-export interface Document {
+export interface JSONDocument {
   id: string;
   CFDocument: CFDocument;
   CFDefinitions: CFDefinitions;

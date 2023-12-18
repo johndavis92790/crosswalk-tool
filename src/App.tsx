@@ -11,7 +11,6 @@ import { auth } from "./utils/firebase";
 import { UserContext } from "./contexts/UserContext";
 import { CrosswalkNavbar } from "./components/CrosswalkNavbar";
 import { Login } from "./pages/Login";
-import { JsonUpload } from "./components/JsonUpload";
 import { Homepage } from "./pages/Homepage";
 
 const allowedEmails = [
@@ -53,7 +52,6 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Homepage />} />
             <Route path="login" element={<Login />} />
-            <Route path="JsonUpload" element={<JsonUpload />} />
           </Routes>
         </UserContext.Provider>
       </BrowserRouter>
