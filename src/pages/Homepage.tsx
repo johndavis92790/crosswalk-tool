@@ -1,5 +1,4 @@
-import { CCItemsTable } from "../components/CCItemsTable";
-import { CFItemsTable } from "../components/CFItemsTable";
+import { ItemsTable } from "../components/ItemsTable";
 
 export function Homepage() {
   return (
@@ -7,11 +6,11 @@ export function Homepage() {
       <div style={{ display: "flex", flexDirection: "row" }}>
         <div style={{ flex: 1, overflowY: "auto", height: "100vh" }}>
           {" "}
-          <CFItemsTable />
+          <ItemsTable firestoreCollectionPath="JSONUploads" />
         </div>
         <div style={{ flex: 1, overflowY: "auto", height: "100vh" }}>
           {" "}
-          <CCItemsTable />
+          <ItemsTable firestoreCollectionPath="CommonCoreJSONUploads" />
         </div>
       </div>
     </div>
