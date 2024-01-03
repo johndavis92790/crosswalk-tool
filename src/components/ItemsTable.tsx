@@ -1,20 +1,23 @@
-import React, { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import {
   getFirestore,
   collection,
   getDocs,
   doc,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import Table from "react-bootstrap/Table";
 import Form from "react-bootstrap/Form";
-import Select from "react-select";
+import Select, { MultiValue } from "react-select";
 import "./ItemsTable.css";
 import {
+  CFAssociation,
   CFDefinitions,
   CFDocument,
   CFItem,
   JSONDocument,
+  PendingChange,
   SelectOption,
   educationLevels,
 } from "../utils/Helpers";
@@ -31,21 +34,22 @@ export function ItemsTable(props: ItemsTableProps) {
   const [docs, setDocs] = useState<JSONDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string>("");
   const [selectedCFItems, setSelectedCFItems] = useState<CFItem[]>([]);
+  const [cfAssociations, setCFAssociations] = useState<CFAssociation[]>([]);
+  const [cfItemMapping, setCFItemMapping] = useState<{ [key: string]: CFItem }>(
+    {}
+  );
+  const [originalSelectedCFItems, setOriginalSelectedCFItems] = useState<
+    CFItem[]
+  >([]);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "ascending" | "descending";
   } | null>(null);
   const [editState, setEditState] = useState<{ [key: string]: boolean }>({});
-
-  const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
-
-  const [cfItemTypeOptions, setCfItemTypeOptions] = useState<SelectOption[]>(
-    []
-  );
-  const [selectedCFItemTypes, setSelectedCFItemTypes] = useState<string[]>([]);
+  const basePath = "/CommonCoreJSONUploads/CCMath/CFItems";
 
   // Adjusted fetchDocs for dynamic collection path
   useEffect(() => {
@@ -86,67 +90,122 @@ export function ItemsTable(props: ItemsTableProps) {
           (item) => standardTypes?.includes(item.CFItemType)
         );
         setSelectedCFItems(filteredItems);
+        setOriginalSelectedCFItems(filteredItems);
       }
     };
 
     fetchCFItems();
-  }, [selectedDocId, firestore, docs]);
+  }, [selectedDocId, firestore, docs, firestoreCollectionPath]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (pendingChanges.length > 0) {
-        saveChanges();
+    const fetchCFAssociations = async () => {
+      if (selectedDocId && firestoreCollectionPath != "CommonCoreJSONUploads") {
+        const associationsSnapshot = await getDocs(
+          collection(
+            firestore,
+            `${firestoreCollectionPath}/${selectedDocId}/CFAssociations`
+          )
+        );
+        const associations = associationsSnapshot.docs.map(
+          (doc) => doc.data() as CFAssociation
+        );
+        setCFAssociations(associations);
+        const cfItems = await fetchCFItemsForAssociations(associations);
+        setCFItemMapping(cfItems);
       }
-    }, 3000); // Save every 3 seconds
+    };
+    fetchCFAssociations();
+  }, [selectedDocId, firestore, docs, firestoreCollectionPath]);
 
+  useEffect(() => {
+    // This will prompt the user if they try to leave with unsaved changes
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingChanges.length > 0) {
+        e.preventDefault();
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?";
+      }
+    };
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
-      clearInterval(interval);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [selectedCFItems, pendingChanges, selectedDocId, firestore]);
+  }, [pendingChanges]);
 
   // Filter the table based on selected education levels
   useEffect(() => {
     if (selectedDocId) {
       const selectedDoc = docs.find((doc) => doc.id === selectedDocId);
       if (selectedDoc && selectedCFItems) {
+        console.log(selectedLevels);
         const filteredItems =
           selectedLevels.length > 0
-            ? selectedCFItems.filter((item: any) =>
-                selectedLevels.some((level) =>
-                  item.educationLevel.includes(level)
+            ? originalSelectedCFItems.filter((item: CFItem) =>
+                selectedLevels.some(
+                  (level) => item.educationLevel?.includes(level)
                 )
               )
-            : selectedCFItems;
+            : originalSelectedCFItems;
+        console.log(filteredItems);
         setSelectedCFItems(filteredItems);
       }
     }
-  }, [selectedDocId, selectedLevels, selectedCFItemTypes, docs]);
+  }, [
+    selectedDocId,
+    selectedLevels,
+    docs,
+    originalSelectedCFItems,
+    selectedCFItems,
+  ]);
 
-  useEffect(() => {
-    // Assuming selectedCFItems is already populated with the CFItems
-    const uniqueCFItemTypes = Array.from(
-      new Set(selectedCFItems.map((item) => item.CFItemType))
+  // Function to map CFItem to its corresponding CFAssociations
+  const getDestinationNodeIdentifiers = (cfItemId: string): string[] => {
+    return cfAssociations
+      .filter(
+        (assoc) =>
+          assoc.originNodeURI.identifier === cfItemId &&
+          assoc.associationType === "isRelatedTo"
+      )
+      .map((assoc) => assoc.destinationNodeURI.identifier);
+  };
+
+  const fetchCFItemsForAssociations = async (associations: CFAssociation[]) => {
+    const uniqueIdentifiers = Array.from(
+      new Set(associations.map((assoc) => assoc.destinationNodeURI.identifier))
     );
+    const cfItems: { [key: string]: CFItem } = {};
 
-    const options = uniqueCFItemTypes.map((type) => ({
-      value: type,
-      label: type,
-    }));
+    for (const id of uniqueIdentifiers) {
+      const docRef = doc(firestore, `${basePath}/${id}`);
+      const docSnap = await getDoc(docRef);
+      console.log(docSnap)
+      if (docSnap.exists()) {
+        cfItems[id] = docSnap.data() as CFItem;
+      }
+    }
 
-    setCfItemTypeOptions(options);
-  }, [selectedCFItems]);
+    return cfItems; // This is an object mapping identifiers to CFItems
+  };
+
+  const getHumanCodingSchemes = (cfItemId: string): string[] => {
+    return cfAssociations
+      .filter((assoc) => assoc.originNodeURI.identifier === cfItemId)
+      .map(
+        (assoc) =>
+          cfItemMapping[assoc.destinationNodeURI.identifier]
+            ?.humanCodingScheme || "N/A"
+      );
+  };
 
   // Function to handle document selection
-  const handleDocSelect = (e: React.ChangeEvent<any>) => {
-    const target = e.target as HTMLSelectElement;
-    const docId = target.value;
-    setSelectedDocId(docId);
-    const selectedDoc = docs.find((doc) => doc.id === docId);
-    if (selectedDoc && selectedCFItems) {
-      setSelectedCFItems(selectedCFItems);
+  const handleDocSelect = (e: ChangeEvent<any>) => {
+    if (e.target instanceof HTMLSelectElement) {
+      const docId = e.target.value;
+      setSelectedDocId(docId);
+      const selectedDoc = docs.find((doc) => doc.id === docId);
+      if (selectedDoc && selectedCFItems) {
+        setSelectedCFItems(selectedCFItems);
+      }
     }
   };
 
@@ -174,14 +233,6 @@ export function ItemsTable(props: ItemsTableProps) {
     );
   };
 
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (pendingChanges.length > 0) {
-      e.preventDefault();
-      e.returnValue =
-        "You have unsaved changes. Are you sure you want to leave?";
-    }
-  };
-
   const handleEdit = (
     identifier: string,
     field: keyof CFItem,
@@ -191,20 +242,37 @@ export function ItemsTable(props: ItemsTableProps) {
       item.identifier === identifier ? { ...item, [field]: value } : item
     );
     setSelectedCFItems(updatedItems);
-    setPendingChanges([...pendingChanges, { identifier, field, value }]);
+
+    // Update pending changes
+    const changeIndex = pendingChanges.findIndex(
+      (change) => change.identifier === identifier && change.field === field
+    );
+    if (changeIndex >= 0) {
+      pendingChanges[changeIndex].value = value;
+    } else {
+      setPendingChanges([...pendingChanges, { identifier, field, value }]);
+    }
   };
 
   const saveChanges = async () => {
     setIsSaving(true);
     console.log("Saving changes to Firestore...");
+
     try {
-      const docRef = doc(firestore, firestoreCollectionPath, selectedDocId);
-      await updateDoc(docRef, { CFItems: selectedCFItems });
+      for (const change of pendingChanges) {
+        const docRef = doc(
+          firestore,
+          `${firestoreCollectionPath}/${selectedDocId}/CFItems`,
+          change.identifier
+        );
+        await updateDoc(docRef, { [change.field]: change.value });
+      }
       console.log("Changes saved successfully.");
       setPendingChanges([]);
     } catch (error) {
       console.error("Error saving changes:", error);
     }
+
     setIsSaving(false);
   };
 
@@ -266,20 +334,16 @@ export function ItemsTable(props: ItemsTableProps) {
     );
   };
 
-  const levelOptions = educationLevels.map((level) => ({
-    value: level,
-    label: level,
-  }));
+  const levelOptions = educationLevels.map(
+    (level): SelectOption => ({
+      value: level,
+      label: level,
+    })
+  );
 
-  const handleLevelChange = (selectedOptions: any) => {
-    const levels = selectedOptions
-      ? selectedOptions.map((option: any) => option.value)
-      : [];
+  const handleLevelChange = (newValue: MultiValue<SelectOption>) => {
+    const levels = newValue ? newValue.map((option) => option.value) : [];
     setSelectedLevels(levels);
-  };
-
-  const handleCFItemTypeChange = (selectedOptions: any) => {
-    setSelectedCFItemTypes(selectedOptions.map((option: any) => option.value));
   };
 
   function displayStandardTypes() {
@@ -323,20 +387,6 @@ export function ItemsTable(props: ItemsTableProps) {
         </Form.Control>
       </Form.Group>
 
-      <Form.Group controlId="cfItemTypeSelect">
-        <Form.Label>Filter by CFItemType</Form.Label>
-        <Select
-          isMulti
-          options={cfItemTypeOptions}
-          value={cfItemTypeOptions.filter((option) =>
-            selectedCFItemTypes.includes(option.value)
-          )}
-          onChange={handleCFItemTypeChange}
-          className="basic-multi-select"
-          classNamePrefix="select"
-        />
-      </Form.Group>
-
       <Form.Group controlId="filterLevelSelect">
         <Form.Label>Filter by Education Level</Form.Label>
         <Select
@@ -351,9 +401,11 @@ export function ItemsTable(props: ItemsTableProps) {
         />
       </Form.Group>
 
-      {isSaving ? <div>Saving changes...</div> : <div>Changes saved.</div>}
-
       {displayStandardTypes()}
+
+      <button onClick={saveChanges} disabled={isSaving}>
+        {isSaving ? "Saving..." : "Save Changes"}
+      </button>
 
       <Table size="sm" className="standards-table" striped bordered hover>
         <thead>
@@ -361,24 +413,28 @@ export function ItemsTable(props: ItemsTableProps) {
             <th onClick={() => handleSort("humanCodingScheme")}>
               Code {renderSortIndicator("humanCodingScheme")}
             </th>
-            <th>CFItemType</th>
             <th>Full Statement</th>
             <th>Education Level</th>
             <th className="hidden-column">Identifier</th>
             <th>Notes</th>
+            {firestoreCollectionPath != "CommonCoreJSONUploads" ? (
+              <th>Associated Human Coding Schemes</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
           {selectedCFItems.map((item, index) => (
             <tr key={index}>
               <td>{item.humanCodingScheme ? item.humanCodingScheme : "N/A"}</td>
-              <td>{item.CFItemType ? item.CFItemType : "N/A"}</td>
               <td>{renderEditableCell(item, "fullStatement")}</td>
               <td>
                 {item.educationLevel ? item.educationLevel.join(", ") : "N/A"}
               </td>
               <td className="hidden-column">{item.identifier}</td>
               <td>{renderEditableCellForNotes(item)}</td>
+              {firestoreCollectionPath != "CommonCoreJSONUploads" ? (
+                <td>{getHumanCodingSchemes(item.identifier).join(", ")}</td>
+              ) : null}
             </tr>
           ))}
         </tbody>

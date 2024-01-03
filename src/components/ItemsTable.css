@@ -2,13 +2,13 @@
   display: none;
 }
 
-.standards-table th:nth-child(3),
-.standards-table td:nth-child(3) {
-  width: 30%; /* Adjust width for Full Statement column */
+.standards-table th:nth-child(2),
+.standards-table td:nth-child(2) {
+  width: 40%; /* Adjust width for Full Statement column */
 }
 
-.standards-table th:nth-child(6),
-.standards-table td:nth-child(6) {
+.standards-table th:nth-child(5),
+.standards-table td:nth-child(5) {
   width: 40%; /* Adjust width for Notes column */
 }
 

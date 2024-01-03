@@ -2,6 +2,7 @@ import { useState } from "react";
 import { collection, writeBatch, doc, setDoc } from "firebase/firestore";
 import { firestore } from "../utils/firebase";
 import Spinner from "react-bootstrap/Spinner";
+import { subjects } from "../utils/Helpers";
 
 interface JsonUploadProps {
   firestoreCollectionPath: string;
@@ -9,10 +10,7 @@ interface JsonUploadProps {
 }
 
 export function JsonUpload(props: JsonUploadProps) {
-  const {
-    firestoreCollectionPath,
-    includeDocIdInput = false,
-  } = props;
+  const { firestoreCollectionPath, includeDocIdInput = false } = props;
 
   const [file, setFile] = useState<File | null>(null);
   const [jsonData, setJsonData] = useState<any>(null);
@@ -25,8 +23,10 @@ export function JsonUpload(props: JsonUploadProps) {
     }>
   >([]);
 
+  const [subject, setSubject] = useState("");
+
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const selectedFile = event.target.files ? event.target.files[0] : null;
     setFile(selectedFile);
@@ -49,25 +49,22 @@ export function JsonUpload(props: JsonUploadProps) {
           }) => ({
             title: CFItemType.title,
             standard: false,
-          })
+          }),
         );
 
         setAvailableTypesDetails(types);
         setJsonData(data);
+        setSubject(data.subject)
       };
       reader.readAsText(selectedFile);
     }
   };
 
-  const handleDocIdChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDocId(event.target.value);
-  };
-
   const handleStandardTypeChange = (title: string) => {
     setAvailableTypesDetails((prevTypes) =>
       prevTypes.map((type) =>
-        type.title === title ? { ...type, standard: !type.standard } : type
-      )
+        type.title === title ? { ...type, standard: !type.standard } : type,
+      ),
     );
   };
 
@@ -78,7 +75,7 @@ export function JsonUpload(props: JsonUploadProps) {
         // Update CFItemTypes in jsonData with standard field
         jsonData.CFDefinitions.CFItemTypes.forEach((type: any) => {
           const foundType = availableTypesDetails.find(
-            (availableType) => availableType.title === type.title
+            (availableType) => availableType.title === type.title,
           );
           type.standard = foundType ? foundType.standard : false;
         });
@@ -90,6 +87,7 @@ export function JsonUpload(props: JsonUploadProps) {
         await setDoc(mainDocRef, {
           CFDocument: jsonData.CFDocument,
           CFDefinitions: jsonData.CFDefinitions,
+          subject: subject
         });
 
         // Process CFItems and CFAssociations in smaller batches
@@ -115,7 +113,7 @@ export function JsonUpload(props: JsonUploadProps) {
             const associationDocRef = doc(
               mainDocRef,
               "CFAssociations",
-              association.identifier
+              association.identifier,
             );
             batch.set(associationDocRef, association);
           }
@@ -133,7 +131,7 @@ export function JsonUpload(props: JsonUploadProps) {
       alert(
         includeDocIdInput
           ? "Please select a file and enter a document ID."
-          : "Please select and process a file first."
+          : "Please select and process a file first.",
       );
     }
   };
@@ -160,6 +158,19 @@ export function JsonUpload(props: JsonUploadProps) {
               onChange={() => handleStandardTypeChange(type.title)}
             />
             <label htmlFor={type.title}>{type.title}</label>
+          </div>
+        ))}
+      </div>
+      <div>
+        {subjects.map((subject, index) => (
+          <div key={index}>
+            <input
+              type="radio"
+              id={subject}
+              name={subject}
+              onChange={() => setSubject(subject)}
+            />
+            <label htmlFor={subject}>{subject}</label>
           </div>
         ))}
       </div>

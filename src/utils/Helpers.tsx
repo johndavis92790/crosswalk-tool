@@ -74,12 +74,19 @@ export interface JSONDocument {
   id: string;
   CFDocument: CFDocument;
   CFDefinitions: CFDefinitions;
+  subject?: string;
 }
 
 export type SelectOption = {
   value: string;
   label: string;
 };
+
+export interface PendingChange {
+  identifier: string;
+  field: keyof CFItem;
+  value: string;
+}
 
 export const educationLevels = [
   "KG",
@@ -96,3 +103,5 @@ export const educationLevels = [
   "11",
   "12",
 ];
+
+export const subjects = ["Math", "ELA", "Science", "Social Studies"];
